@@ -72,6 +72,12 @@ npm run build
 # 此时只有二进制文件，没有安装包！
 ```
 
+**注意**：默认配置中侧边栏(msidebar)是禁用的，如需启用：
+```bash
+# 修改 src/browser/app/profile/midori-browser.js
+# 将 pref('midori.msidebar.enabled', false); 改为 true
+```
+
 ---
 
 ## 打包为 .deb（推荐方式）

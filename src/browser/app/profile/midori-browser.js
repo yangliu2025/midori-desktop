@@ -82,7 +82,7 @@ pref('midori.search.customEngine.iconURL', '');
 pref('midori.sidebar.keeptabsactive.enabled', false);
 
 // Midori Sidebar (msidebar) - New modular sidebar system
-pref('midori.msidebar.enabled', false);
+pref('midori.msidebar.enabled', true);
 
 //PIP pref
 pref('media.videocontrols.picture-in-picture.audio-toggle.enabled', true);
