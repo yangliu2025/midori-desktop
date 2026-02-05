@@ -256,8 +256,14 @@ CREATE_BACKUP=no ./scripts/migrate-midori-profile.sh
 - 网站图标（favicons.sqlite）
 - 用户设置（prefs.js）
 - 保存的密码（key4.db）
-- 扩展（extensions/）
 - 网站存储数据（storage/）
+
+**不迁移的内容**：
+- 扩展（extensions/）- 需要手动重新安装
+- 扩展数据（browser-extension-data/）
+- 扩展存储（extension-store/）
+
+> 注意：旧版本的扩展可能与新版本不兼容，建议在新版本中从 Add-ons 商店重新安装所需扩展。
 
 ### 手动迁移
 
@@ -273,6 +279,9 @@ NEW_PROFILE=$(grep "^\[Install" ~/.mozilla/midori/profiles.ini -A2 | grep "^Defa
 
 # 3. 迁移数据
 rsync -av --ignore-existing \
+    --exclude 'extensions/' \
+    --exclude 'browser-extension-data/' \
+    --exclude 'extension-store/' \
     ~/.midori/$OLD_PROFILE/ \
     ~/.mozilla/midori/$NEW_PROFILE/
 

@@ -139,8 +139,8 @@ print_info "Important data being migrated:"
 [ -f "$OLD_PROFILE_DIR/favicons.sqlite" ] && print_info "  ✓ Favicons (favicons.sqlite)"
 [ -f "$OLD_PROFILE_DIR/prefs.js" ] && print_info "  ✓ Preferences (prefs.js)"
 [ -f "$OLD_PROFILE_DIR/key4.db" ] && print_info "  ✓ Passwords (key4.db)"
-[ -d "$OLD_PROFILE_DIR/extensions" ] && print_info "  ✓ Extensions"
 [ -d "$OLD_PROFILE_DIR/storage" ] && print_info "  ✓ Website storage"
+print_info "  ✗ Extensions (will NOT be migrated - reinstall manually)"
 echo
 
 # Confirm
@@ -164,15 +164,21 @@ fi
 
 # Perform migration
 print_info "Starting migration..."
-print_info "Using rsync to merge profiles..."
+print_info "Using rsync to merge profiles (excluding extensions)..."
 
 # Use rsync to merge old data into new profile
 # --ignore-existing: don't overwrite files that already exist in destination
 # -a: archive mode (preserve permissions, timestamps, etc.)
 # -v: verbose
-rsync -av --ignore-existing "$OLD_PROFILE_DIR/" "$NEW_PROFILE_DIR/"
+# --exclude: skip extensions directory (old extensions may cause issues)
+rsync -av --ignore-existing \
+    --exclude 'extensions/' \
+    --exclude 'browser-extension-data/' \
+    --exclude 'extension-store/' \
+    "$OLD_PROFILE_DIR/" "$NEW_PROFILE_DIR/"
 
 print_success "Data migration completed"
+print_info "Note: Extensions were NOT migrated - reinstall them manually"
 
 # Update compatibility.ini
 print_info "Updating compatibility information..."
