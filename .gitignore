@@ -23,3 +23,5 @@ target/
 
 locales/firefox-l10n/
 .opencode_last_session
+
+midori-deb/

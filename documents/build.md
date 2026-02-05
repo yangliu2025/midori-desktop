@@ -67,19 +67,30 @@ npm run init
 npm run brand  # 设置为 release 品牌
 npm run build
 
-# 构建产物会在 engine/obj-x86_64-pc-linux/dist/bin/ 目录
+# 构建产物会在 engine/obj-x86_64-pc-linux-gnu/dist/bin/ 目录
+# 主可执行文件：midori 和 midori-bin
 # 此时只有二进制文件，没有安装包！
 ```
 
 ---
 
-## 打包为 .deb（手动方式，推荐）
+## 打包为 .deb（推荐方式）
+
+### 方法一：使用打包脚本（最简单）
+
+项目已包含 `build-deb.sh` 脚本，直接运行即可：
+
+```bash
+./build-deb.sh
+```
+
+### 方法二：手动打包
 
 编译完成后，执行以下步骤创建 deb 包：
 
 ```bash
 # 1. 安装打包工具
-sudo apt install -y dpkg-dev fakeroot
+sudo apt install -y dpkg-dev fakeroot rsync
 
 # 2. 创建打包目录
 PKGROOT="$PWD/midori-deb"
@@ -87,9 +98,15 @@ mkdir -p "$PKGROOT/opt/midori" "$PKGROOT/DEBIAN"
 mkdir -p "$PKGROOT/usr/share/applications"
 mkdir -p "$PKGROOT/usr/share/icons/hicolor/256x256/apps"
 
-# 3. 复制构建产物
-# 构建产物通常在 engine/obj-*-linux/dist/bin/
-cp -r engine/obj-*-linux/dist/bin/* "$PKGROOT/opt/midori/"
+# 3. 复制构建产物（重要：必须解析符号链接）
+# 使用 rsync 解析符号链接并复制
+rsync -aL --copy-unsafe-links engine/obj-x86_64-pc-linux-gnu/dist/bin/ "$PKGROOT/opt/midori/" 2>/dev/null || true
+
+# 如果 rsync 失败，使用备选方案
+if [ ! -f "$PKGROOT/opt/midori/midori" ]; then
+    tar -C engine/obj-x86_64-pc-linux-gnu/dist/bin -cf - . | tar -C "$PKGROOT/opt/midori" -xf -
+    find "$PKGROOT/opt/midori" -type l ! -exec test -e {} \; -delete
+fi
 
 # 4. 创建 control 文件
 cat > "$PKGROOT/DEBIAN/control" << 'EOF'
@@ -99,7 +116,7 @@ Section: web
 Priority: optional
 Architecture: amd64
 Maintainer: Local Build <local@build>
-Depends: libgtk-3-0, libpulse0, libasound2, libdbus-glib-1-2, libxt6
+Depends: libgtk-3-0, libpulse0, libasound2, libdbus-glib-1-2, libxt6, libnss3, libxrandr2, libx11-6
 Description: Midori Browser - Lightweight web browser
  Midori is a fast, lightweight, and open-source web browser
  based on Firefox/Gecko engine.
@@ -109,20 +126,31 @@ EOF
 cat > "$PKGROOT/usr/share/applications/midori.desktop" << 'EOF'
 [Desktop Entry]
 Name=Midori Browser
+Comment=Browse the World Wide Web
 Exec=/opt/midori/midori %u
 Terminal=false
 Type=Application
 Icon=midori
+StartupWMClass=Midori
 Categories=Network;WebBrowser;
 MimeType=text/html;text/xml;application/xhtml+xml;application/xml;x-scheme-handler/http;x-scheme-handler/https;
 EOF
 
-# 6. 复制图标（如有）
-cp src/browser/themes/midori/logo.svg "$PKGROOT/usr/share/icons/hicolor/256x256/apps/midori.svg" 2>/dev/null || true
+# 6. 复制图标
+cp configs/branding/release/logo256.png "$PKGROOT/usr/share/icons/hicolor/256x256/apps/midori.png"
 
-# 7. 构建 deb 包
+# 7. 设置权限
+chmod 755 "$PKGROOT/opt/midori/midori"
+chmod 755 "$PKGROOT/opt/midori/midori-bin"
+
+# 8. 构建 deb 包
 fakeroot dpkg-deb --build "$PKGROOT" ./midori-browser_12.0-1_amd64.deb
 ```
+
+**重要说明**：
+- 必须使用 `rsync -L` 或类似方法解析符号链接，否则会有大量损坏的链接
+- 最终 deb 包约 580MB
+- 如果系统已安装旧版本 midori，需要先卸载：`sudo dpkg -r midori`
 
 ---
 
@@ -156,6 +184,14 @@ sudo dpkg -i ./midori-browser_12.0-1_amd64.deb
 
 # 运行测试
 /opt/midori/midori --version
+
+# 启动浏览器（图形界面）
+/opt/midori/midori
+```
+
+**卸载**：
+```bash
+sudo dpkg -r midori-browser
 ```
 
 ---
