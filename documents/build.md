@@ -219,3 +219,86 @@ sudo dpkg -r midori-browser
 - Rust 版本：1.83
 - Python 版本：3.11
 - CI/CD：OpenSUSE Build Service（非 GitHub Actions）
+- 迁移脚本：`scripts/migrate-midori-profile.sh`
+
+---
+
+## 从旧版本迁移用户数据
+
+如果你之前使用过 Midori v11.6（存储在 `~/.midori/`），升级到 v12.0 后需要迁移数据到新位置（`~/.mozilla/midori/`）。
+
+### 使用迁移脚本（推荐）
+
+项目提供了自动迁移脚本：
+
+```bash
+# 基本用法（会提示确认）
+./scripts/migrate-midori-profile.sh
+
+# 自动确认（无交互）
+AUTO_CONFIRM=yes ./scripts/migrate-midori-profile.sh
+
+# 不创建备份（节省空间）
+CREATE_BACKUP=no ./scripts/migrate-midori-profile.sh
+```
+
+**脚本功能**：
+- ✅ 自动检测新旧 profile 路径
+- ✅ 安全关闭运行中的 Midori
+- ✅ 自动备份新 profile（带时间戳）
+- ✅ 智能合并数据（不覆盖新文件）
+- ✅ 更新版本兼容性信息
+- ✅ 彩色输出，显示详细进度
+
+**迁移的数据包括**：
+- 书签和历史记录（places.sqlite）
+- Cookie（cookies.sqlite）
+- 网站图标（favicons.sqlite）
+- 用户设置（prefs.js）
+- 保存的密码（key4.db）
+- 扩展（extensions/）
+- 网站存储数据（storage/）
+
+### 手动迁移
+
+如果需要手动迁移，可以使用 rsync：
+
+```bash
+# 1. 关闭 Midori
+pkill -f midori
+
+# 2. 找到 profile 目录
+OLD_PROFILE=$(grep "^Path=" ~/.midori/profiles.ini | grep default-release | cut -d= -f2)
+NEW_PROFILE=$(grep "^\[Install" ~/.mozilla/midori/profiles.ini -A2 | grep "^Default=" | cut -d= -f2)
+
+# 3. 迁移数据
+rsync -av --ignore-existing \
+    ~/.midori/$OLD_PROFILE/ \
+    ~/.mozilla/midori/$NEW_PROFILE/
+
+# 4. 更新兼容性信息
+VERSION=$(grep "^Version=" /opt/midori/application.ini | cut -d= -f2)
+BUILD_ID=$(grep "^BuildID=" /opt/midori/application.ini | cut -d= -f2)
+
+cat > ~/.mozilla/midori/$NEW_PROFILE/compatibility.ini << EOF
+[Compatibility]
+LastVersion=${VERSION}_${BUILD_ID}/${BUILD_ID}
+LastOSABI=Linux_x86_64-gcc3
+LastPlatformDir=/opt/midori
+LastAppDir=/opt/midori/browser
+EOF
+```
+
+### 迁移后清理
+
+迁移成功后，确认数据正常后可删除旧目录：
+
+```bash
+# 检查新版本是否正常工作
+/opt/midori/midori
+
+# 确认书签、历史记录都在后，删除旧目录
+rm -rf ~/.midori
+```
+
+这可以回收约 1.1GB 的磁盘空间。
